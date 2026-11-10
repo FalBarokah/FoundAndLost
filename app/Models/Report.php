@@ -57,11 +57,22 @@ class Report extends Model
         return $this->type === 'ditemukan';
     }
 
+    public function isMenungguVerifikasi(): bool
+    {
+        return $this->status === 'menunggu_verifikasi';
+    }
+
+    public function isSelesai(): bool
+    {
+        return $this->status === 'selesai';
+    }
+
     public function getFormattedStatusAttribute(): string
     {
         return match ($this->status) {
             'proses_pencarian' => 'Proses Pencarian',
             'siap_diambil' => 'Siap Diambil',
+            'menunggu_verifikasi' => 'Menunggu Verifikasi',
             'selesai' => 'Selesai',
             default => ucfirst(str_replace('_', ' ', $this->status)),
         };

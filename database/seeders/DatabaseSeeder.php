@@ -17,11 +17,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Admin / Satpam
-        $admin = Admin::create([
-            'name' => 'Satpam / Admin',
+        // 1. Admin & Satpam
+        $superAdmin = Admin::create([
+            'name' => 'Admin',
             'email' => 'admin@gmail.com',
             'password' => Hash::make('password'),
+            'role' => 'super_admin',
+        ]);
+
+        $satpam = Admin::create([
+            'name' => 'Satpam Pos 1',
+            'email' => 'satpam@gmail.com',
+            'password' => Hash::make('password'),
+            'role' => 'satpam',
         ]);
 
         // 2. Active Reports (Hilang)
@@ -205,11 +213,14 @@ class DatabaseSeeder extends Seeder
         Handover::create([
             'report_id' => $history1->report_id,
             'claim_id' => null,
-            'admin_id' => $admin->admin_id,
+            'admin_id' => $satpam->admin_id,
             'recipient_name' => 'Andi P.',
             'recipient_contact' => '081234567892',
             'notes' => 'Barang diserahkan setelah pemilik berhasil membuka password laptop dan menunjukkan kartu identitas siswa.',
             'handover_date' => Carbon::parse('2026-10-28 14:30:00'),
+            'status' => 'disetujui',
+            'verified_by' => $superAdmin->admin_id,
+            'verified_at' => Carbon::parse('2026-10-28 15:00:00'),
         ]);
 
         $history2 = Report::create([
@@ -231,11 +242,14 @@ class DatabaseSeeder extends Seeder
         Handover::create([
             'report_id' => $history2->report_id,
             'claim_id' => null,
-            'admin_id' => $admin->admin_id,
+            'admin_id' => $satpam->admin_id,
             'recipient_name' => 'Siti N.',
             'recipient_contact' => '081234567893',
             'notes' => 'Dompet diserahkan langsung oleh penemu di pos satpam dan diterima oleh pemilik sah.',
             'handover_date' => Carbon::parse('2026-10-25 10:15:00'),
+            'status' => 'disetujui',
+            'verified_by' => $superAdmin->admin_id,
+            'verified_at' => Carbon::parse('2026-10-25 10:30:00'),
         ]);
 
         $history3 = Report::create([
@@ -257,11 +271,14 @@ class DatabaseSeeder extends Seeder
         Handover::create([
             'report_id' => $history3->report_id,
             'claim_id' => null,
-            'admin_id' => $admin->admin_id,
+            'admin_id' => $satpam->admin_id,
             'recipient_name' => 'Budi S.',
             'recipient_contact' => '081234567897',
             'notes' => 'Kunci diverifikasi dapat membuka loker 42 milik siswa Budi S.',
             'handover_date' => Carbon::parse('2026-10-22 13:00:00'),
+            'status' => 'disetujui',
+            'verified_by' => $superAdmin->admin_id,
+            'verified_at' => Carbon::parse('2026-10-22 13:15:00'),
         ]);
 
         $history4 = Report::create([
@@ -283,11 +300,14 @@ class DatabaseSeeder extends Seeder
         Handover::create([
             'report_id' => $history4->report_id,
             'claim_id' => null,
-            'admin_id' => $admin->admin_id,
+            'admin_id' => $satpam->admin_id,
             'recipient_name' => 'Maya R.',
             'recipient_contact' => '081234567898',
             'notes' => 'Tas ransel diambil oleh pemilik setelah diverifikasi isi tasnya.',
             'handover_date' => Carbon::parse('2026-10-20 16:00:00'),
+            'status' => 'disetujui',
+            'verified_by' => $superAdmin->admin_id,
+            'verified_at' => Carbon::parse('2026-10-20 16:30:00'),
         ]);
     }
 }

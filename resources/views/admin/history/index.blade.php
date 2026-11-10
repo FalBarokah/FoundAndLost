@@ -1,30 +1,31 @@
 @extends('layouts.admin')
 
-@section('title', 'History Serah Terima - Admin')
+@section('title', 'History Laporan Selesai - Admin')
 @section('header', 'History')
 
 @section('content')
 <div class="space-y-6">
     <!-- Header Card -->
     <div class="bg-[#f7f8fa] border border-[#e2e8f0] rounded-[16px] p-5 sm:p-6 shadow-2xs">
-        <h1 class="text-xl sm:text-[24px] font-bold text-[#0f172a] mb-1">Riwayat Laporan Selesai</h1>
+        <h1 class="text-xl sm:text-[24px] font-bold text-[#0f172a] mb-1">Riwayat &amp; Arsip Laporan Selesai</h1>
         <p class="text-xs sm:text-[14px] text-[#64748b]">
-            Arsip seluruh barang yang telah berhasil diserahterimakan kepada pemilik yang sah beserta bukti dokumentasinya.
+            Arsip seluruh barang yang telah berhasil diserahterimakan kepada pemilik yang sah dan telah diverifikasi oleh Admin.
         </p>
     </div>
 
     <!-- Data Table Card -->
     <div class="bg-[#f7f8fa] border border-[#e2e8f0] rounded-[16px] overflow-hidden shadow-2xs">
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-[14px] min-w-[750px] sm:min-w-0">
+            <table class="w-full text-left text-[14px] min-w-[800px] sm:min-w-0">
                 <thead class="bg-[#edf0f4] text-[#64748b] text-[12px] font-semibold uppercase tracking-wider">
                     <tr>
                         <th class="px-4 sm:px-6 py-3.5">Kode</th>
                         <th class="px-4 sm:px-6 py-3.5">Nama Barang</th>
                         <th class="px-4 sm:px-6 py-3.5">Jenis</th>
                         <th class="px-4 sm:px-6 py-3.5">Penerima</th>
-                        <th class="px-4 sm:px-6 py-3.5">Tanggal Serah Terima</th>
-                        <th class="px-4 sm:px-6 py-3.5">Petugas</th>
+                        <th class="px-4 sm:px-6 py-3.5">Waktu Selesai</th>
+                        <th class="px-4 sm:px-6 py-3.5">Petugas Satpam</th>
+                        <th class="px-4 sm:px-6 py-3.5">Diverifikasi Oleh</th>
                         <th class="px-4 sm:px-6 py-3.5 text-right">Aksi</th>
                     </tr>
                 </thead>
@@ -34,7 +35,7 @@
                             $handover = $report->handover;
                         @endphp
                         <tr class="hover:bg-white/60 transition-colors">
-                            <td class="px-4 sm:px-6 py-4 font-semibold text-[#2563eb] whitespace-nowrap">
+                            <td class="px-4 sm:px-6 py-4 font-semibold text-[#059669] whitespace-nowrap text-xs">
                                 {{ $report->code }}
                             </td>
                             <td class="px-4 sm:px-6 py-4 font-medium text-[#0f172a]">
@@ -47,7 +48,7 @@
                                             <span class="text-[9px] text-[#94a3b8] tracking-widest mt-0.5">IMG</span>
                                         </div>
                                     @endif
-                                    <span class="truncate max-w-[150px] sm:max-w-xs">{{ $report->item_name }}</span>
+                                    <span class="truncate max-w-[150px] sm:max-w-xs font-semibold">{{ $report->item_name }}</span>
                                 </div>
                             </td>
                             <td class="px-4 sm:px-6 py-4 whitespace-nowrap">
@@ -64,19 +65,25 @@
                                 {{ $handover?->handover_date ? \Carbon\Carbon::parse($handover->handover_date)->format('d M Y, H:i') : '-' }}
                             </td>
                             <td class="px-4 sm:px-6 py-4 text-[#64748b] whitespace-nowrap text-xs sm:text-sm">
-                                {{ $handover?->admin?->name ?? 'Admin Satpam' }}
+                                {{ $handover?->admin?->name ?? 'Satpam' }}
+                            </td>
+                            <td class="px-4 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm">
+                                <span class="inline-flex items-center gap-1 text-[#059669] font-semibold">
+                                    <svg class="size-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                    {{ $handover?->verifier?->name ?? 'Admin' }}
+                                </span>
                             </td>
                             <td class="px-4 sm:px-6 py-4 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.history.show', $report->report_id) }}"
-                                   class="inline-flex items-center bg-[#2563eb] hover:bg-blue-700 text-white text-[12px] font-semibold px-3.5 py-1.5 rounded-[8px] transition-colors shadow-2xs">
-                                    Detail
+                                   class="inline-flex items-center bg-[#059669] hover:bg-[#047857] text-white text-[12px] font-semibold px-3.5 py-1.5 rounded-[8px] transition-colors shadow-2xs">
+                                    Detail Arsip
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-[#94a3b8]">
-                                Belum ada riwayat laporan yang selesai diserahterimakan.
+                            <td colspan="8" class="px-6 py-12 text-center text-[#94a3b8]">
+                                Belum ada riwayat laporan yang selesai diserahterimakan dan disetujui.
                             </td>
                         </tr>
                     @endforelse

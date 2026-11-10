@@ -7,16 +7,38 @@
 <div class="space-y-6">
     <!-- Back Link -->
     <a href="{{ route('admin.handover.index') }}" class="inline-flex items-center text-[#2563eb] text-[14px] font-medium hover:underline">
-        &larr; Kembali ke Serah Terima
+        &larr; Kembali ke Daftar Serah Terima
     </a>
 
     <!-- Page Heading -->
     <div>
         <h1 class="text-2xl sm:text-[28px] font-bold text-[#0f172a] mb-1">Form Serah Terima Barang</h1>
         <p class="text-xs sm:text-[15px] text-[#64748b]">
-            {{ $report->code }} &middot; {{ $report->item_name }}. Catat data penerima dan unggah foto dokumentasi serah terima.
+            {{ $report->code }} &middot; {{ $report->item_name }}. Catat data penerima dan unggah foto dokumentasi serah terima untuk diverifikasi oleh Admin.
         </p>
     </div>
+
+    <!-- Alert Jika Sebelumnya Ditolak Admin -->
+    @if(isset($existingHandover) && $existingHandover->status === 'ditolak')
+        <div class="bg-red-50 border-2 border-red-300 rounded-[16px] p-5 shadow-2xs">
+            <div class="flex items-start gap-3">
+                <div class="size-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
+                    <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-red-900 uppercase tracking-wide">Pengajuan Sebelumnya Ditolak oleh Admin</h2>
+                    <p class="text-xs sm:text-sm text-red-800 mt-1 font-medium leading-relaxed">
+                        <strong>Alasan Penolakan:</strong> {{ $existingHandover->rejection_reason }}
+                    </p>
+                    <p class="text-xs text-red-700 mt-1">
+                        Silakan perbaiki data atau perbarui foto bukti penyerahan barang di bawah ini lalu ajukan kembali.
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -63,18 +85,24 @@
 
         <!-- Right: Form Serah Terima -->
         <div class="lg:col-span-7 bg-[#f7f8fa] border border-[#e2e8f0] rounded-[16px] p-5 sm:p-8 shadow-2xs">
-            <h3 class="text-base sm:text-[18px] font-semibold text-[#0f172a] mb-5">Pencatatan Berita Acara Serah Terima</h3>
+            <h3 class="text-base sm:text-[18px] font-semibold text-[#0f172a] mb-2">Pencatatan Berita Acara Serah Terima</h3>
+            <p class="text-xs text-[#64748b] mb-5">
+                Pastikan identitas penerima telah diperiksa secara langsung. Laporan ini akan diverifikasi oleh Admin.
+            </p>
 
             @php
-                $defaultRecipient = $activeClaim ? $activeClaim->claimant_name : $report->reporter_name;
-                $defaultContact = $activeClaim ? $activeClaim->claimant_phone : $report->reporter_phone;
+                $defaultRecipient = $existingHandover?->recipient_name
+                    ?: ($activeClaim ? $activeClaim->claimant_name : $report->reporter_name);
+                $defaultContact = $existingHandover?->recipient_contact
+                    ?: ($activeClaim ? $activeClaim->claimant_phone : $report->reporter_phone);
+                $defaultNotes = $existingHandover?->notes ?: '';
             @endphp
 
             <form action="{{ route('admin.handover.store', $report->report_id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
                 @csrf
 
                 <div>
-                    <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">Nama Lengkap Penerima</label>
+                    <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">Nama Lengkap Penerima <span class="text-red-500">*</span></label>
                     <input type="text" name="recipient_name" value="{{ old('recipient_name', $defaultRecipient) }}" required
                            class="w-full bg-[#f7f8fa] border @error('recipient_name') border-red-500 @else border-[#e2e8f0] @enderror rounded-[10px] px-3.5 py-2.5 text-[14px] text-[#0f172a] focus:outline-none focus:border-[#2563eb]">
                     @error('recipient_name')
@@ -83,7 +111,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">No. Kontak / No. Identitas Penerima</label>
+                    <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">No. Kontak / No. Identitas Penerima <span class="text-red-500">*</span></label>
                     <input type="text" name="recipient_contact" value="{{ old('recipient_contact', $defaultContact) }}" placeholder="08xx / NIK / Kartu Pelajar" required
                            class="w-full bg-[#f7f8fa] border @error('recipient_contact') border-red-500 @else border-[#e2e8f0] @enderror rounded-[10px] px-3.5 py-2.5 text-[14px] text-[#0f172a] focus:outline-none focus:border-[#2563eb]">
                     @error('recipient_contact')
@@ -92,7 +120,20 @@
                 </div>
 
                 <div>
-                    <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">Dokumentasi Foto Serah Terima (opsional)</label>
+                    <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">
+                        Dokumentasi Foto Serah Terima <span class="text-red-500">*</span>
+                    </label>
+
+                    @if(isset($existingHandover) && $existingHandover->proof_photo_url)
+                        <div class="mb-3 p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-3">
+                            <img src="{{ $existingHandover->proof_photo_url }}" alt="Foto Tersimpan" class="size-16 rounded-lg object-cover border border-slate-200">
+                            <div class="text-xs">
+                                <span class="font-bold text-slate-800 block">Foto Bukti Sebelumnya Telah Diunggah</span>
+                                <span class="text-[#64748b] block mt-0.5">Unggah foto baru di bawah jika ingin mengganti foto sebelumnya.</span>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="border-2 border-dashed border-[#2563eb] bg-[#edf0f4] rounded-[12px] p-5 sm:p-6 text-center transition-colors relative">
                         <input type="file" name="proof_photo" id="proof_photo" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewUpload(this)">
                         <div id="upload-placeholder" class="space-y-1 pointer-events-none">
@@ -118,7 +159,7 @@
                 <div>
                     <label class="block text-[13px] font-medium text-[#0f172a] mb-1.5">Catatan Serah Terima (opsional)</label>
                     <textarea name="notes" rows="3" placeholder="Contoh: Barang diserahkan dalam kondisi baik dan lengkap, disaksikan oleh petugas jaga."
-                              class="w-full bg-[#f7f8fa] border border-[#e2e8f0] rounded-[10px] px-3.5 py-2.5 text-[14px] text-[#0f172a] focus:outline-none focus:border-[#2563eb]">{{ old('notes') }}</textarea>
+                              class="w-full bg-[#f7f8fa] border border-[#e2e8f0] rounded-[10px] px-3.5 py-2.5 text-[14px] text-[#0f172a] focus:outline-none focus:border-[#2563eb]">{{ old('notes', $defaultNotes) }}</textarea>
                 </div>
 
                 <div class="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 border-t border-[#e2e8f0]">
@@ -127,8 +168,8 @@
                         Batal
                     </a>
                     <button type="submit"
-                            class="text-center bg-[#16a34a] hover:bg-green-700 text-white font-semibold text-[14px] px-6 py-3 rounded-[10px] transition-colors shadow-2xs cursor-pointer">
-                        Simpan &amp; Selesaikan Laporan
+                            class="text-center bg-[#2563eb] hover:bg-blue-700 text-white font-semibold text-[14px] px-6 py-3 rounded-[10px] transition-colors shadow-2xs cursor-pointer">
+                        Ajukan Serah Terima ke Admin &rarr;
                     </button>
                 </div>
             </form>

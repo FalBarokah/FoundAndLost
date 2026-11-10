@@ -133,6 +133,7 @@ class ReportController extends Controller
             'reporter_phone' => ['required', 'regex:/^[0-9]{10,13}$/'],
             'description' => 'required|string',
             'special_features' => 'nullable|string',
+            'photo' => 'nullable|image|max:2048',
         ], [
             'reporter_phone.regex' => 'Nomor telepon harus berupa angka antara 10 hingga 13 digit.',
         ]);
@@ -141,12 +142,26 @@ class ReportController extends Controller
             return back()->withErrors(['edit_code' => 'Kode Edit tidak valid.'])->withInput();
         }
 
+        $photoUrl = $report->photo_url;
+        if ($request->hasFile('photo')) {
+            // Hapus file foto lama dari storage jika ada
+            if ($report->photo_url) {
+                $oldPath = str_replace('/storage/', '', $report->photo_url);
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+            $path = $request->file('photo')->store('reports', 'public');
+            $photoUrl = Storage::url($path);
+        }
+
         $report->update([
             'item_name' => $validated['item_name'],
             'location' => $validated['location'],
             'reporter_phone' => $validated['reporter_phone'],
             'description' => $validated['description'],
             'special_features' => $validated['special_features'] ?? $report->special_features,
+            'photo_url' => $photoUrl,
         ]);
 
         return redirect()->route('report.show', ['code' => $report->code])

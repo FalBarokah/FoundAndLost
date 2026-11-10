@@ -10,6 +10,12 @@ class Admin extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public const ROLE_SUPER_ADMIN = 'super_admin';
+
+    public const ROLE_ADMIN = 'admin';
+
+    public const ROLE_SATPAM = 'satpam';
+
     protected $table = 'admins';
 
     protected $primaryKey = 'admin_id';
@@ -18,6 +24,7 @@ class Admin extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     protected $hidden = [
@@ -28,6 +35,16 @@ class Admin extends Authenticatable
     protected function casts(): array
     {
         return [];
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN], true);
+    }
+
+    public function isSatpam(): bool
+    {
+        return $this->role === self::ROLE_SATPAM;
     }
 
     public function handovers()

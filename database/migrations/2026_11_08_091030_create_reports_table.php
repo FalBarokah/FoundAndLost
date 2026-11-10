@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('photo_url', 255)->nullable();
             $table->string('reporter_name', 100);
             $table->string('reporter_phone', 20);
-            $table->enum('status', ['proses_pencarian', 'siap_diambil', 'selesai'])->default('proses_pencarian');
+            $table->enum('status', ['proses_pencarian', 'siap_diambil', 'menunggu_verifikasi', 'selesai'])->default('proses_pencarian');
             $table->boolean('is_published')->default(true);
             $table->timestamps();
         });

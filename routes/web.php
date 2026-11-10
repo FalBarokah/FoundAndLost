@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminHandoverController;
 use App\Http\Controllers\Admin\AdminHistoryController;
 use App\Http\Controllers\Admin\AdminReportController;
+use App\Http\Controllers\Admin\AdminSatpamController;
+use App\Http\Controllers\Admin\AdminVerificationController;
 use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ReportController;
@@ -56,7 +58,7 @@ Route::prefix('admin')->group(function () {
     Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
 
     Route::middleware('auth:admin')->group(function () {
-        // Dashboard
+        // Dashboard (Accessible by Admin and Satpam)
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
         // Manage Reports
@@ -68,14 +70,31 @@ Route::prefix('admin')->group(function () {
         Route::post('/klaim/{id}/tindak-lanjuti', [AdminClaimController::class, 'tindakLanjuti'])->name('admin.claim.approve');
         Route::post('/klaim/{id}/batalkan', [AdminClaimController::class, 'batalkan'])->name('admin.claim.cancel');
 
-        // Handover (Serah Terima)
+        // Handover (Serah Terima - Satpam process)
         Route::get('/serah-terima', [AdminHandoverController::class, 'index'])->name('admin.handover.index');
         Route::get('/serah-terima/proses/{id}', [AdminHandoverController::class, 'create'])->name('admin.handover.create');
         Route::post('/serah-terima/proses/{id}', [AdminHandoverController::class, 'store'])->name('admin.handover.store');
         Route::post('/serah-terima/batal/{id}', [AdminHandoverController::class, 'cancelQueue'])->name('admin.handover.cancelQueue');
 
-        // History
-        Route::get('/history', [AdminHistoryController::class, 'index'])->name('admin.history.index');
-        Route::get('/history/{id}', [AdminHistoryController::class, 'show'])->name('admin.history.show');
+        // Admin ONLY Routes
+        Route::middleware('admin.role:super_admin')->group(function () {
+            // Verifikasi Serah Terima
+            Route::get('/verifikasi', [AdminVerificationController::class, 'index'])->name('admin.verification.index');
+            Route::get('/verifikasi/{id}', [AdminVerificationController::class, 'show'])->name('admin.verification.show');
+            Route::post('/verifikasi/{id}/approve', [AdminVerificationController::class, 'approve'])->name('admin.verification.approve');
+            Route::post('/verifikasi/{id}/reject', [AdminVerificationController::class, 'reject'])->name('admin.verification.reject');
+
+            // CRUD Akun Satpam
+            Route::get('/satpam', [AdminSatpamController::class, 'index'])->name('admin.satpam.index');
+            Route::get('/satpam/tambah', [AdminSatpamController::class, 'create'])->name('admin.satpam.create');
+            Route::post('/satpam', [AdminSatpamController::class, 'store'])->name('admin.satpam.store');
+            Route::get('/satpam/{id}/edit', [AdminSatpamController::class, 'edit'])->name('admin.satpam.edit');
+            Route::put('/satpam/{id}', [AdminSatpamController::class, 'update'])->name('admin.satpam.update');
+            Route::delete('/satpam/{id}', [AdminSatpamController::class, 'destroy'])->name('admin.satpam.destroy');
+
+            // History (Khusus Admin)
+            Route::get('/history', [AdminHistoryController::class, 'index'])->name('admin.history.index');
+            Route::get('/history/{id}', [AdminHistoryController::class, 'show'])->name('admin.history.show');
+        });
     });
 });

@@ -123,7 +123,7 @@ class LostAndFoundWorkflowTest extends TestCase
         $this->assertEquals('ditindaklanjuti', $claim->status);
         $this->assertFalse((bool) $report->is_published);
 
-        // Admin performs handover
+        // Satpam performs handover submission
         $handoverResponse = $this->actingAs($this->admin, 'admin')
             ->post(route('admin.handover.store', ['id' => $report->report_id]), [
                 'recipient_name' => 'Citra Dewi',
@@ -131,11 +131,29 @@ class LostAndFoundWorkflowTest extends TestCase
                 'notes' => 'Barang telah diterima langsung oleh pemilik asli.',
             ]);
 
-        $handoverResponse->assertRedirect(route('admin.history.index'));
+        $handoverResponse->assertRedirect(route('admin.handover.index'));
         $report->refresh();
-        $this->assertEquals('selesai', $report->status);
+        $this->assertEquals('menunggu_verifikasi', $report->status);
         $this->assertNotNull($report->handover);
         $this->assertEquals('Citra Dewi', $report->handover->recipient_name);
+        $this->assertEquals('menunggu_verifikasi', $report->handover->status);
+
+        // Admin approves handover
+        $superAdmin = Admin::create([
+            'name' => 'Admin',
+            'email' => 'super@email.com',
+            'password' => Hash::make('password'),
+            'role' => 'super_admin',
+        ]);
+
+        $approveHandoverResponse = $this->actingAs($superAdmin, 'admin')
+            ->post(route('admin.verification.approve', ['id' => $report->handover->handover_id]));
+
+        $approveHandoverResponse->assertRedirect(route('admin.history.index'));
+        $report->refresh();
+        $this->assertEquals('selesai', $report->status);
+        $this->assertEquals('disetujui', $report->handover->status);
+        $this->assertEquals($superAdmin->admin_id, $report->handover->verified_by);
     }
 
     public function test_user_can_track_report(): void

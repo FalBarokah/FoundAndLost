@@ -24,9 +24,14 @@ class AdminAuthController extends Controller
         $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'role' => 'nullable|string|in:super_admin,admin,satpam',
         ]);
 
-        $admin = Admin::where('email', $credentials['email'])->first();
+        $inputEmail = trim(strtolower($credentials['email']));
+        $selectedRole = $request->input('role', 'super_admin');
+
+        // Cari admin berdasarkan email (case-insensitive & trim)
+        $admin = Admin::whereRaw('LOWER(TRIM(email)) = ?', [$inputEmail])->first();
 
         if ($admin) {
             $storedPassword = $admin->getRawOriginal('password') ?? $admin->password;
@@ -34,32 +39,55 @@ class AdminAuthController extends Controller
                 || str_starts_with($storedPassword, '$2a$')
                 || str_starts_with($storedPassword, '$2b$');
 
+            $passwordMatches = false;
+
             if ($isBcrypt) {
                 // Password sudah di-hash Bcrypt → gunakan Hash::check
-                if (Hash::check($credentials['password'], $storedPassword)) {
-                    Auth::guard('admin')->login($admin, $request->boolean('remember'));
-                    $request->session()->regenerate();
-
-                    return redirect()->intended(route('admin.dashboard'));
-                }
+                $passwordMatches = Hash::check($credentials['password'], $storedPassword);
             } else {
-                // Password plaintext (diedit manual di phpMyAdmin)
-                if ($credentials['password'] === $storedPassword) {
+                // Mendukung password plaintext, MD5, atau SHA1 (sering diedit langsung di phpMyAdmin)
+                if (
+                    $credentials['password'] === $storedPassword
+                    || md5($credentials['password']) === $storedPassword
+                    || sha1($credentials['password']) === $storedPassword
+                ) {
                     // Otomatis upgrade ke hash Bcrypt yang aman
                     $admin->password = Hash::make($credentials['password']);
                     $admin->save();
-
-                    Auth::guard('admin')->login($admin, $request->boolean('remember'));
-                    $request->session()->regenerate();
-
-                    return redirect()->intended(route('admin.dashboard'));
+                    $passwordMatches = true;
                 }
+            }
+
+            if ($passwordMatches) {
+                // Periksa apakah role akun sesuai dengan tab toggle yang dipilih saat login
+                if ($request->filled('role')) {
+                    $selectedRole = $request->input('role');
+                    $selectedIsAdmin = in_array($selectedRole, ['super_admin', 'admin'], true);
+                    $userIsAdmin = $admin->isSuperAdmin();
+
+                    if ($selectedIsAdmin && ! $userIsAdmin) {
+                        return back()->withErrors([
+                            'login_error' => "Akun ini terdaftar sebagai Satpam, bukan Admin. Silakan alihkan pilihan login ke tab 'Satpam'.",
+                        ])->withInput($request->only('email', 'role'));
+                    }
+
+                    if (! $selectedIsAdmin && $userIsAdmin) {
+                        return back()->withErrors([
+                            'login_error' => "Akun ini terdaftar sebagai Admin, bukan Satpam. Silakan alihkan pilihan login ke tab 'Admin'.",
+                        ])->withInput($request->only('email', 'role'));
+                    }
+                }
+
+                Auth::guard('admin')->login($admin, $request->boolean('remember'));
+                $request->session()->regenerate();
+
+                return redirect()->intended(route('admin.dashboard'));
             }
         }
 
         return back()->withErrors([
             'login_error' => 'Email atau password yang Anda masukkan salah. Silakan periksa kembali.',
-        ])->onlyInput('email');
+        ])->withInput($request->only('email', 'role'));
     }
 
     public function logout(Request $request)

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Claim;
 use App\Models\Handover;
 use App\Models\Report;
 use Carbon\Carbon;
@@ -15,42 +14,57 @@ class AdminHandoverController extends Controller
 {
     public function index()
     {
-        // Reports ready for handover (status != selesai)
-        // 1. Found items with approved claim (status == 'ditindaklanjuti')
-        // 2. Lost items with status == 'siap_diambil'
+        // 1. Antrean siap diproses (hilang: siap_diambil, ditemukan: klaim ditindaklanjuti)
+        // Tidak termasuk yang sedang berstatus 'menunggu_verifikasi'
         $queueReports = Report::with(['claims' => function ($q) {
             $q->where('status', 'ditindaklanjuti');
-        }])
-            ->where('status', '!=', 'selesai')
+        }, 'handover'])
+            ->where('status', 'siap_diambil')
             ->where(function ($query) {
                 $query->whereHas('claims', function ($cq) {
                     $cq->where('status', 'ditindaklanjuti');
-                })->orWhere(function ($hq) {
-                    $hq->where('type', 'hilang')->where('status', 'siap_diambil');
-                });
+                })->orWhere('type', 'hilang');
             })
             ->latest('updated_at')
-            ->paginate(10);
+            ->paginate(10, ['*'], 'queue_page');
 
-        return view('admin.handover.index', compact('queueReports'));
+        // 2. Laporan yang sudah diajukan serah terima dan menunggu verifikasi Admin
+        $pendingVerificationReports = Report::with(['claims', 'handover.admin'])
+            ->where('status', 'menunggu_verifikasi')
+            ->latest('updated_at')
+            ->get();
+
+        // 3. Laporan yang serah terimanya ditolak oleh Admin (perlu revisi / diproses ulang)
+        $rejectedReports = Report::with(['claims', 'handover.admin'])
+            ->where('status', 'siap_diambil')
+            ->whereHas('handover', function ($hq) {
+                $hq->where('status', Handover::STATUS_DITOLAK);
+            })
+            ->latest('updated_at')
+            ->get();
+
+        return view('admin.handover.index', compact('queueReports', 'pendingVerificationReports', 'rejectedReports'));
     }
 
     public function create(int $id)
     {
         $report = Report::with(['claims' => function ($q) {
             $q->where('status', 'ditindaklanjuti');
-        }])->findOrFail($id);
+        }, 'handover'])->findOrFail($id);
 
         $activeClaim = $report->claims->first();
+        $existingHandover = $report->handover;
 
-        return view('admin.handover.create', compact('report', 'activeClaim'));
+        return view('admin.handover.create', compact('report', 'activeClaim', 'existingHandover'));
     }
 
     public function store(Request $request, int $id)
     {
         $report = Report::with(['claims' => function ($q) {
             $q->where('status', 'ditindaklanjuti');
-        }])->findOrFail($id);
+        }, 'handover'])->findOrFail($id);
+
+        $existingHandover = $report->handover;
 
         $validated = $request->validate([
             'recipient_name' => 'required|string|max:100',
@@ -67,36 +81,58 @@ class AdminHandoverController extends Controller
 
         $activeClaim = $report->claims->first();
 
-        Handover::create([
-            'report_id' => $report->report_id,
-            'claim_id' => $activeClaim?->claim_id,
-            'admin_id' => Auth::guard('admin')->id(),
-            'recipient_name' => $validated['recipient_name'],
-            'recipient_contact' => $validated['recipient_contact'],
-            'proof_photo_url' => $proofPhotoUrl,
-            'notes' => $validated['notes'] ?? null,
-            'handover_date' => Carbon::now(),
-        ]);
+        if ($existingHandover) {
+            $existingHandover->update([
+                'claim_id' => $activeClaim?->claim_id,
+                'admin_id' => Auth::guard('admin')->id(),
+                'recipient_name' => $validated['recipient_name'],
+                'recipient_contact' => $validated['recipient_contact'],
+                'proof_photo_url' => $proofPhotoUrl ?? $existingHandover->proof_photo_url,
+                'notes' => $validated['notes'] ?? null,
+                'handover_date' => Carbon::now(),
+                'status' => Handover::STATUS_MENUNGGU_VERIFIKASI,
+                'rejection_reason' => null,
+                'verified_by' => null,
+                'verified_at' => null,
+            ]);
+        } else {
+            Handover::create([
+                'report_id' => $report->report_id,
+                'claim_id' => $activeClaim?->claim_id,
+                'admin_id' => Auth::guard('admin')->id(),
+                'recipient_name' => $validated['recipient_name'],
+                'recipient_contact' => $validated['recipient_contact'],
+                'proof_photo_url' => $proofPhotoUrl,
+                'notes' => $validated['notes'] ?? null,
+                'handover_date' => Carbon::now(),
+                'status' => Handover::STATUS_MENUNGGU_VERIFIKASI,
+            ]);
+        }
 
-        // Once handover is created, status becomes 'selesai' and report moves to History!
+        // Laporan beralih ke status menunggu verifikasi
         $report->update([
-            'status' => 'selesai',
+            'status' => 'menunggu_verifikasi',
             'is_published' => false,
         ]);
 
-        return redirect()->route('admin.history.index')
-            ->with('success', "Laporan serah terima untuk {$report->item_name} ({$report->code}) berhasil dibuat. Laporan telah dipindahkan ke History.");
+        return redirect()->route('admin.handover.index')
+            ->with('success', "Laporan serah terima untuk {$report->item_name} ({$report->code}) berhasil diajukan dan sedang menunggu verifikasi dari Admin.");
     }
 
     public function cancelQueue(int $id)
     {
-        $report = Report::with('claims')->findOrFail($id);
+        $report = Report::with(['claims', 'handover'])->findOrFail($id);
 
         // Cancel approved claims back to menunggu
         foreach ($report->claims as $claim) {
             if ($claim->status === 'ditindaklanjuti') {
                 $claim->update(['status' => 'menunggu']);
             }
+        }
+
+        // Jika ada draft / rejected handover, hapus atau bersihkan
+        if ($report->handover && $report->handover->status !== Handover::STATUS_DISETUJUI) {
+            $report->handover->delete();
         }
 
         $report->update([

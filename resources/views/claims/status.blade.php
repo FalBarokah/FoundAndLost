@@ -76,7 +76,7 @@
                         Menunggu Verifikasi
                     </div>
                     <p class="text-[14px] text-[#0f172a] leading-relaxed bg-[#fffbeb] border border-[#fde68a] rounded-[10px] p-4">
-                        Klaimmu sedang ditinjau oleh admin/satpam. Kami akan menghubungi nomor kamu jika data bukti sudah cocok.
+                        Klaimmu sedang ditinjau oleh petugas satpam. Kami akan menghubungi nomor kamu jika data bukti sudah cocok.
                     </p>
                 @endif
             </div>

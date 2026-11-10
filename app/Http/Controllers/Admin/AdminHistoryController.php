@@ -9,7 +9,7 @@ class AdminHistoryController extends Controller
 {
     public function index()
     {
-        $histories = Report::with(['handover.admin'])
+        $histories = Report::with(['handover.admin', 'handover.verifier'])
             ->where('status', 'selesai')
             ->latest('updated_at')
             ->paginate(10);
@@ -19,7 +19,7 @@ class AdminHistoryController extends Controller
 
     public function show(int $id)
     {
-        $report = Report::with(['handover.admin', 'claims'])
+        $report = Report::with(['handover.admin', 'handover.verifier', 'claims'])
             ->where('status', 'selesai')
             ->findOrFail($id);
 
